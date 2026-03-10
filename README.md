@@ -21,6 +21,8 @@ uv run fp-bucket-counts
 uv run fp-bucket-counts --limit 1000
 ```
 
+Each run prints a dedicated `ntfy.sh` topic URL and sends progress notifications for the main pipeline milestones.
+
 Results (CSVs and SVGs) are written to `output/`.
 
 ## Tests
