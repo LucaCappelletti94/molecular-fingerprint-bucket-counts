@@ -109,6 +109,28 @@ def test_smoke_pipeline(smoke_env, capsys):
     maccs_lines = maccs_csv.read_text().strip().split("\n")
     assert len(maccs_lines) == 168
 
+    # Verify co-occurrence outputs exist for all configs
+    npz_files = list(output_dir.glob("cooc_*.npz"))
+    cooc_csv_files = list(output_dir.glob("cooc_summary_*.csv"))
+    heatmap_files = list(output_dir.glob("cooc_heatmap_*.svg"))
+    assert len(npz_files) == expected_count, (
+        f"Expected {expected_count} npz files, got {len(npz_files)}"
+    )
+    assert len(cooc_csv_files) == expected_count, (
+        f"Expected {expected_count} cooc CSV files, got {len(cooc_csv_files)}"
+    )
+    assert len(heatmap_files) == expected_count, (
+        f"Expected {expected_count} heatmap files, got {len(heatmap_files)}"
+    )
+
+    # Verify npz can be loaded and has expected shape
+    from fp_bucket_counts.cooccurrence import load_cooccurrence_npz
+
+    ecfp_npz = [f for f in npz_files if "ECFP_fp_size2048" in f.name][0]
+    cooc_matrix, total = load_cooccurrence_npz(ecfp_npz)
+    assert cooc_matrix.shape == (2048, 2048)
+    assert total > 0
+
     notification_titles = [notification["title"] for notification in smoke_env["notifications"]]
     assert notification_titles == [
         "Pipeline Started",
@@ -133,3 +155,8 @@ def test_pipeline_writes_svg_when_pool_unavailable(smoke_env, monkeypatch):
     assert (output_dir / "bit_counts_ECFP_fp_size1024.csv").exists()
     assert (output_dir / "histogram_ECFP_fp_size1024.svg").exists()
     assert not list(output_dir.glob("histogram_*.png"))
+
+    # Co-occurrence outputs exist in serial fallback too
+    assert (output_dir / "cooc_ECFP_fp_size1024.npz").exists()
+    assert (output_dir / "cooc_summary_ECFP_fp_size1024.csv").exists()
+    assert (output_dir / "cooc_heatmap_ECFP_fp_size1024.svg").exists()

@@ -60,11 +60,33 @@ class MolNormalizer:
 
 _fused_normalizer: MolNormalizer | None = None
 _fused_fingerprinters: list | None = None
+_cooc_accumulators: list[np.ndarray | None] | None = None
+_cooc_tmp_dir: str | None = None
 
 
-def _init_fused_worker(fp_configs: list[dict]) -> None:
-    global _fused_normalizer, _fused_fingerprinters
-    from .fingerprint import create_fingerprinter
+def _save_cooc_accumulators() -> None:
+    """atexit handler: save per-worker co-occurrence accumulators to disk."""
+    if _cooc_accumulators is None or _cooc_tmp_dir is None:
+        return
+    import os
+
+    if not os.path.isdir(_cooc_tmp_dir):
+        return
+
+    pid = os.getpid()
+    for i, acc in enumerate(_cooc_accumulators):
+        if acc is None:
+            continue
+        np.save(f"{_cooc_tmp_dir}/cooc_{pid}_{i}.npy", acc)
+
+
+def _init_fused_worker(
+    fp_configs: list[dict],
+    cooc_tmp_dir: str | None = None,
+    cooc_enabled: Sequence[bool] | None = None,
+) -> None:
+    global _fused_normalizer, _fused_fingerprinters, _cooc_accumulators, _cooc_tmp_dir
+    from .fingerprint import create_fingerprinter, get_fp_size
 
     _fused_normalizer = MolNormalizer()
     _fused_fingerprinters = []
@@ -73,6 +95,24 @@ def _init_fused_worker(fp_configs: list[dict]) -> None:
         fp_size = fp_conf.get("fp_size")
         extra = {k: v for k, v in fp_conf.items() if k not in ("name", "fp_size")}
         _fused_fingerprinters.append(create_fingerprinter(name, fp_size=fp_size, **extra))
+
+    if cooc_tmp_dir is not None:
+        import atexit
+
+        _cooc_tmp_dir = cooc_tmp_dir
+        enabled_flags = (
+            list(cooc_enabled) if cooc_enabled is not None else [True] * len(_fused_fingerprinters)
+        )
+        if len(enabled_flags) != len(_fused_fingerprinters):
+            raise ValueError("cooc_enabled must match the number of fingerprint configs")
+        _cooc_accumulators = [
+            np.zeros((get_fp_size(fpr), get_fp_size(fpr)), dtype=np.uint32) if enabled else None
+            for enabled, fpr in zip(enabled_flags, _fused_fingerprinters)
+        ]
+        atexit.register(_save_cooc_accumulators)
+    else:
+        _cooc_accumulators = None
+        _cooc_tmp_dir = None
 
 
 def _normalize_and_count_batch(inchi_batch: Sequence[str]) -> tuple[list[np.ndarray], list[int]]:
@@ -90,11 +130,15 @@ def _normalize_and_count_batch(inchi_batch: Sequence[str]) -> tuple[list[np.ndar
 
     partials = []
     counts = []
-    for fpr in _fused_fingerprinters:
+    for i, fpr in enumerate(_fused_fingerprinters):
         try:
             fps = compute_fingerprints(fpr, mols)
             partials.append(fps.astype(np.uint64).sum(axis=0))
             counts.append(n_valid)
+            accumulator = _cooc_accumulators[i] if _cooc_accumulators is not None else None
+            if accumulator is not None:
+                fps32 = fps.astype(np.float32)
+                accumulator += (fps32.T @ fps32).astype(np.uint32)
         except Exception:
             partials.append(np.zeros(get_fp_size(fpr), dtype=np.uint64))
             counts.append(0)
