@@ -63,16 +63,12 @@ FP_CONFIGS: list[dict[str, Any]] = [
     # --- Smaller default sizes ---
     {"name": "ECFP", "fp_size": 1024},
     {"name": "Avalon", "fp_size": 512},
-    {"name": "MAP", "fp_size": 1024},
     {"name": "Lingo", "fp_size": 1024},
     # --- Radius variants ---
     {"name": "ECFP", "fp_size": 2048, "radius": 3},
-    {"name": "MAP", "fp_size": 2048, "radius": 3},
-    {"name": "MAP", "fp_size": 2048, "radius": 4},
     # --- Fixed-size structural keys ---
     {"name": "MACCS"},
     {"name": "PubChem"},
-    {"name": "KlekotaRoth"},
 ]
 BATCH_SIZE = 10_000
 
