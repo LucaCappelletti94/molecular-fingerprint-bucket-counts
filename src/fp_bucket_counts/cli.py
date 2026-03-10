@@ -120,9 +120,25 @@ def run_pipeline(limit: int | None = None) -> None:
     accumulators = [np.zeros(sz, dtype=np.uint64) for sz in fp_sizes]
     total_molecules = [0] * len(FP_CONFIGS)
 
-    with Pool(n_jobs, initializer=_init_fused_worker, initargs=(FP_CONFIGS,)) as pool:
+    try:
+        with Pool(n_jobs, initializer=_init_fused_worker, initargs=(FP_CONFIGS,)) as pool:
+            batch_results = pool.imap_unordered(
+                _normalize_and_count_batch, inchi_batches, chunksize=1
+            )
+            for partial_counts, fp_counts in tqdm(
+                batch_results,
+                total=len(inchi_batches),
+                desc="Processing",
+                unit="batch",
+            ):
+                for i, (acc, partial) in enumerate(zip(accumulators, partial_counts)):
+                    acc += partial
+                    total_molecules[i] += fp_counts[i]
+    except PermissionError:
+        log.warning("Multiprocessing unavailable; falling back to serial batch processing")
+        _init_fused_worker(FP_CONFIGS)
         for partial_counts, fp_counts in tqdm(
-            pool.imap_unordered(_normalize_and_count_batch, inchi_batches, chunksize=1),
+            map(_normalize_and_count_batch, inchi_batches),
             total=len(inchi_batches),
             desc="Processing",
             unit="batch",

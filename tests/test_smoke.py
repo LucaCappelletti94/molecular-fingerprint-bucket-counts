@@ -92,3 +92,19 @@ def test_smoke_pipeline(smoke_env):
     maccs_csv = [f for f in csv_files if f.name == "bit_counts_MACCS.csv"][0]
     maccs_lines = maccs_csv.read_text().strip().split("\n")
     assert len(maccs_lines) == 168
+
+
+def test_pipeline_writes_svg_when_pool_unavailable(smoke_env, monkeypatch):
+    monkeypatch.setattr(cli, "FP_CONFIGS", [{"name": "ECFP", "fp_size": 1024}])
+
+    def _raise_permission_error(*args, **kwargs):
+        raise PermissionError("multiprocessing disabled in test")
+
+    monkeypatch.setattr(cli, "Pool", _raise_permission_error)
+
+    run_pipeline(limit=2)
+
+    output_dir = smoke_env["output_dir"]
+    assert (output_dir / "bit_counts_ECFP_fp_size1024.csv").exists()
+    assert (output_dir / "histogram_ECFP_fp_size1024.svg").exists()
+    assert not list(output_dir.glob("histogram_*.png"))
