@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fp-bucket-counts"
+version = "0.1.0"
+description = "Molecular fingerprint bucket count analysis"
+requires-python = ">=3.12"
+dependencies = [
+    "scikit-fingerprints>=1.6",
+    "numpy>=1.24",
+    "matplotlib>=3.7",
+    "tqdm>=4.60",
+]
+
+[project.scripts]
+fp-bucket-counts = "fp_bucket_counts.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fp_bucket_counts"]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "pytest-timeout>=2.0",
+    "mypy>=1.10",
+    "types-tqdm>=4.60",
+    "ruff>=0.4",
+]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "skfp.*",
+    "rdkit.*",
+    "matplotlib.*",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
