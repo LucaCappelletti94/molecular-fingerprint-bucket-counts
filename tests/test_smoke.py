@@ -51,19 +51,35 @@ def smoke_env(tmp_path, monkeypatch):
     _create_test_data(data_dir)
 
     output_dir = tmp_path / "output"
+    notifications = []
 
     monkeypatch.setattr(cli, "DATA_DIR", data_dir)
     monkeypatch.setattr(cli, "OUTPUT_DIR", output_dir)
+    monkeypatch.setattr(cli, "generate_topic", lambda: "test-topic")
+    monkeypatch.setattr(
+        cli,
+        "notify",
+        lambda topic, message, *, title=None, tags=None: notifications.append(
+            {
+                "topic": topic,
+                "message": message,
+                "title": title,
+                "tags": tags,
+            }
+        ),
+    )
 
-    return {"data_dir": data_dir, "output_dir": output_dir}
+    return {"data_dir": data_dir, "output_dir": output_dir, "notifications": notifications}
 
 
 @pytest.mark.timeout(300)
-def test_smoke_pipeline(smoke_env):
+def test_smoke_pipeline(smoke_env, capsys):
     run_pipeline(limit=10)
+    captured = capsys.readouterr()
 
     output_dir = smoke_env["output_dir"]
     assert output_dir.exists()
+    assert "https://ntfy.sh/test-topic" in captured.out
 
     from fp_bucket_counts.cli import FP_CONFIGS
 
@@ -92,6 +108,15 @@ def test_smoke_pipeline(smoke_env):
     maccs_csv = [f for f in csv_files if f.name == "bit_counts_MACCS.csv"][0]
     maccs_lines = maccs_csv.read_text().strip().split("\n")
     assert len(maccs_lines) == 168
+
+    notification_titles = [notification["title"] for notification in smoke_env["notifications"]]
+    assert notification_titles == [
+        "Pipeline Started",
+        "Data Downloaded",
+        "InChIs Loaded",
+        "Processing Complete",
+        "Pipeline Complete",
+    ]
 
 
 def test_pipeline_writes_svg_when_pool_unavailable(smoke_env, monkeypatch):

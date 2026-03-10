@@ -19,6 +19,7 @@ from .analysis import (
 from .download import ensure_data
 from .fingerprint import config_label, create_fingerprinter, get_fp_size
 from .normalize import _init_fused_worker, _normalize_and_count_batch
+from .ntfy import generate_topic, notify
 from .stream import stream_inchi
 
 DATA_DIR = Path("data")
@@ -89,9 +90,16 @@ def run_pipeline(limit: int | None = None) -> None:
     )
     log = logging.getLogger(__name__)
 
+    topic = generate_topic()
+    ntfy_url = f"https://ntfy.sh/{topic}"
+    log.info("ntfy topic: %s", ntfy_url)
+    print(f"\nNotifications: {ntfy_url}\n")
+    notify(topic, f"Pipeline started (limit={limit})", title="Pipeline Started", tags="rocket")
+
     n_jobs = os.cpu_count() or 1
 
     gz_path = ensure_data(DATA_DIR)
+    notify(topic, f"Data ready: {gz_path}", title="Data Downloaded", tags="white_check_mark")
 
     fp_entries = []
     for fp_conf in FP_CONFIGS:
@@ -110,6 +118,7 @@ def run_pipeline(limit: int | None = None) -> None:
     inchi_stream = stream_inchi(gz_path, limit=limit)
     inchis = list(tqdm(inchi_stream, total=limit, desc="Loading InChIs", unit="mol"))
     log.info("Loaded %d unique InChIs", len(inchis))
+    notify(topic, f"Loaded {len(inchis):,} unique InChIs", title="InChIs Loaded", tags="test_tube")
 
     # Phase 2: Fused normalize + fingerprint in workers, return only count arrays
     inchi_batches = list(
@@ -148,6 +157,12 @@ def run_pipeline(limit: int | None = None) -> None:
                 total_molecules[i] += fp_counts[i]
 
     log.info("Processed molecules (per-fingerprint counts vary)")
+    notify(
+        topic,
+        f"Fingerprinting complete across {len(FP_CONFIGS)} configurations",
+        title="Processing Complete",
+        tags="bar_chart",
+    )
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     for (label, _fp_size), acc, mol_count in tqdm(
@@ -162,6 +177,13 @@ def run_pipeline(limit: int | None = None) -> None:
 
         log.info("Saved: %s", csv_path)
         log.info("Saved: %s", svg_path)
+
+    notify(
+        topic,
+        f"All done! {len(FP_CONFIGS)} fingerprints reported to {OUTPUT_DIR}/",
+        title="Pipeline Complete",
+        tags="tada",
+    )
 
 
 def main() -> None:
