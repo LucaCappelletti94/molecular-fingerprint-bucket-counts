@@ -118,31 +118,31 @@ def run_pipeline(limit: int | None = None) -> None:
         )
     )
     accumulators = [np.zeros(sz, dtype=np.uint64) for sz in fp_sizes]
-    total_molecules = 0
+    total_molecules = [0] * len(FP_CONFIGS)
 
     with Pool(n_jobs, initializer=_init_fused_worker, initargs=(FP_CONFIGS,)) as pool:
-        for partial_counts, n_valid in tqdm(
+        for partial_counts, fp_counts in tqdm(
             pool.imap_unordered(_normalize_and_count_batch, inchi_batches, chunksize=1),
             total=len(inchi_batches),
             desc="Processing",
             unit="batch",
         ):
-            total_molecules += n_valid
-            for acc, partial in zip(accumulators, partial_counts):
+            for i, (acc, partial) in enumerate(zip(accumulators, partial_counts)):
                 acc += partial
+                total_molecules[i] += fp_counts[i]
 
-    log.info("Processed %d molecules", total_molecules)
+    log.info("Processed molecules (per-fingerprint counts vary)")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    for (label, _fp_size), acc in tqdm(
-        zip(fp_entries, accumulators), desc="Reporting", unit="fingerprint"
+    for (label, _fp_size), acc, mol_count in tqdm(
+        zip(fp_entries, accumulators, total_molecules), desc="Reporting", unit="fingerprint"
     ):
         csv_path = OUTPUT_DIR / f"bit_counts_{label}.csv"
         png_path = OUTPUT_DIR / f"histogram_{label}.png"
 
-        save_counts_csv(acc, csv_path, total_molecules)
-        plot_histogram(acc, png_path, total_molecules, label)
-        print_summary(acc, total_molecules, label)
+        save_counts_csv(acc, csv_path, mol_count)
+        plot_histogram(acc, png_path, mol_count, label)
+        print_summary(acc, mol_count, label)
 
         log.info("Saved: %s", csv_path)
         log.info("Saved: %s", png_path)

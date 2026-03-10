@@ -76,19 +76,19 @@ def test_smoke_pipeline(smoke_env):
     # Check CSV content
     for csv_file in csv_files:
         lines = csv_file.read_text().strip().split("\n")
-        header = lines[0]
-        assert header == "bit_position,count,fraction"
-        assert len(lines) > 1
+        assert lines[0].startswith("# total_molecules:")
+        assert lines[1] == "bit_position,count,fraction"
+        assert len(lines) > 2
 
-    # Verify ECFP_fp_size2048 has 2048 rows (plus header)
+    # Verify ECFP_fp_size2048 has 2048 data rows (+ comment + header)
     ecfp_2048_csv = [f for f in csv_files if f.name == "bit_counts_ECFP_fp_size2048.csv"][0]
-    assert len(ecfp_2048_csv.read_text().strip().split("\n")) == 2049
+    assert len(ecfp_2048_csv.read_text().strip().split("\n")) == 2050
 
-    # Verify ECFP_fp_size1024 has 1024 rows (plus header)
+    # Verify ECFP_fp_size1024 has 1024 data rows (+ comment + header)
     ecfp_1024_csv = [f for f in csv_files if f.name == "bit_counts_ECFP_fp_size1024.csv"][0]
-    assert len(ecfp_1024_csv.read_text().strip().split("\n")) == 1025
+    assert len(ecfp_1024_csv.read_text().strip().split("\n")) == 1026
 
-    # Verify MACCS has 166 rows (plus header)
+    # Verify MACCS has 166 data rows (+ comment + header)
     maccs_csv = [f for f in csv_files if f.name == "bit_counts_MACCS.csv"][0]
     maccs_lines = maccs_csv.read_text().strip().split("\n")
-    assert len(maccs_lines) == 167
+    assert len(maccs_lines) == 168

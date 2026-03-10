@@ -75,7 +75,7 @@ def _init_fused_worker(fp_configs: list[dict]) -> None:
         _fused_fingerprinters.append(create_fingerprinter(name, fp_size=fp_size, **extra))
 
 
-def _normalize_and_count_batch(inchi_batch: Sequence[str]) -> tuple[list[np.ndarray], int]:
+def _normalize_and_count_batch(inchi_batch: Sequence[str]) -> tuple[list[np.ndarray], list[int]]:
     from .fingerprint import compute_fingerprints, get_fp_size
 
     assert _fused_normalizer is not None
@@ -86,11 +86,17 @@ def _normalize_and_count_batch(inchi_batch: Sequence[str]) -> tuple[list[np.ndar
 
     if n_valid == 0:
         partials = [np.zeros(get_fp_size(fpr), dtype=np.uint64) for fpr in _fused_fingerprinters]
-        return partials, 0
+        return partials, [0] * len(_fused_fingerprinters)
 
     partials = []
+    counts = []
     for fpr in _fused_fingerprinters:
-        fps = compute_fingerprints(fpr, mols)
-        partials.append(fps.astype(np.uint64).sum(axis=0))
+        try:
+            fps = compute_fingerprints(fpr, mols)
+            partials.append(fps.astype(np.uint64).sum(axis=0))
+            counts.append(n_valid)
+        except Exception:
+            partials.append(np.zeros(get_fp_size(fpr), dtype=np.uint64))
+            counts.append(0)
 
-    return partials, n_valid
+    return partials, counts

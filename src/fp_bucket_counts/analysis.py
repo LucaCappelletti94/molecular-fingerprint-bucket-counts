@@ -17,6 +17,7 @@ def save_counts_csv(
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="") as f:
+        f.write(f"# total_molecules: {total_molecules}\n")
         writer = csv.writer(f)
         writer.writerow(["bit_position", "count", "fraction"])
         for i, count in enumerate(bit_counts):
