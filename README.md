@@ -7,13 +7,13 @@ Are molecular fingerprint buckets uniform? This pipeline downloads all ~116M InC
 
 ## Setup
 
-```
+```bash
 uv sync
 ```
 
 ## Usage
 
-```
+```bash
 # Full run (downloads ~6.8 GB from PubChem, processes all ~116M molecules)
 uv run fp-bucket-counts
 
@@ -25,6 +25,6 @@ Results (CSVs and SVGs) are written to `output/`.
 
 ## Tests
 
-```
+```bash
 uv run pytest tests/ -v
 ```
