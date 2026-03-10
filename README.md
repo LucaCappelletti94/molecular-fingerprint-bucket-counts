@@ -21,7 +21,7 @@ uv run fp-bucket-counts
 uv run fp-bucket-counts --limit 1000
 ```
 
-Results (CSVs and PNGs) are written to `output/`.
+Results (CSVs and SVGs) are written to `output/`.
 
 ## Tests
 

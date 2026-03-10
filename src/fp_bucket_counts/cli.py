@@ -138,14 +138,14 @@ def run_pipeline(limit: int | None = None) -> None:
         zip(fp_entries, accumulators, total_molecules), desc="Reporting", unit="fingerprint"
     ):
         csv_path = OUTPUT_DIR / f"bit_counts_{label}.csv"
-        png_path = OUTPUT_DIR / f"histogram_{label}.png"
+        svg_path = OUTPUT_DIR / f"histogram_{label}.svg"
 
         save_counts_csv(acc, csv_path, mol_count)
-        plot_histogram(acc, png_path, mol_count, label)
+        plot_histogram(acc, svg_path, mol_count, label)
         print_summary(acc, mol_count, label)
 
         log.info("Saved: %s", csv_path)
-        log.info("Saved: %s", png_path)
+        log.info("Saved: %s", svg_path)
 
 
 def main() -> None:

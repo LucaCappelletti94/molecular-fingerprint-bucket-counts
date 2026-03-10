@@ -69,9 +69,9 @@ def test_smoke_pipeline(smoke_env):
 
     expected_count = len(FP_CONFIGS)
     csv_files = list(output_dir.glob("bit_counts_*.csv"))
-    png_files = list(output_dir.glob("histogram_*.png"))
+    svg_files = list(output_dir.glob("histogram_*.svg"))
     assert len(csv_files) == expected_count, f"Expected {expected_count} CSV files, got {csv_files}"
-    assert len(png_files) == expected_count, f"Expected {expected_count} PNG files, got {png_files}"
+    assert len(svg_files) == expected_count, f"Expected {expected_count} SVG files, got {svg_files}"
 
     # Check CSV content
     for csv_file in csv_files:
