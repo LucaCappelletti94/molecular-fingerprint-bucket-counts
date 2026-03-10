@@ -55,17 +55,11 @@ FP_CONFIGS: list[dict[str, Any]] = [
     {"name": "Lingo", "fp_size": 2048},
     # --- Larger sizes ---
     {"name": "ECFP", "fp_size": 4096},
-    {"name": "ECFP", "fp_size": 8192},
     {"name": "AtomPair", "fp_size": 4096},
-    {"name": "AtomPair", "fp_size": 8192},
     {"name": "TopologicalTorsion", "fp_size": 4096},
-    {"name": "TopologicalTorsion", "fp_size": 8192},
     {"name": "RDKit", "fp_size": 4096},
-    {"name": "RDKit", "fp_size": 8192},
     {"name": "MHFP", "fp_size": 4096},
-    {"name": "MHFP", "fp_size": 8192},
     {"name": "Avalon", "fp_size": 4096},
-    {"name": "Avalon", "fp_size": 8192},
     # --- Smaller default sizes ---
     {"name": "ECFP", "fp_size": 1024},
     {"name": "Avalon", "fp_size": 512},
