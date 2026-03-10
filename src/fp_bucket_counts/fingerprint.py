@@ -1,22 +1,42 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 from skfp.fingerprints import (
     AtomPairFingerprint,
+    AvalonFingerprint,
     ECFPFingerprint,
+    KlekotaRothFingerprint,
+    LingoFingerprint,
     MACCSFingerprint,
+    MAPFingerprint,
+    MHFPFingerprint,
+    PubChemFingerprint,
+    RDKitFingerprint,
+    SECFPFingerprint,
+    TopologicalTorsionFingerprint,
 )
 
 FINGERPRINT_REGISTRY: dict[str, type] = {
     "ECFP": ECFPFingerprint,
     "AtomPair": AtomPairFingerprint,
+    "TopologicalTorsion": TopologicalTorsionFingerprint,
+    "RDKit": RDKitFingerprint,
+    "MHFP": MHFPFingerprint,
+    "Avalon": AvalonFingerprint,
+    "MAP": MAPFingerprint,
+    "SECFP": SECFPFingerprint,
+    "Lingo": LingoFingerprint,
     "MACCS": MACCSFingerprint,
+    "PubChem": PubChemFingerprint,
+    "KlekotaRoth": KlekotaRothFingerprint,
 }
 
-FIXED_SIZE_FINGERPRINTS = {"MACCS"}
+FIXED_SIZE_FINGERPRINTS = {"MACCS", "PubChem", "KlekotaRoth"}
 
 
-def create_fingerprinter(name: str, fp_size: int | None = None) -> object:
+def create_fingerprinter(name: str, fp_size: int | None = None, **extra_kwargs: Any) -> object:
     if name not in FINGERPRINT_REGISTRY:
         raise ValueError(f"Unknown fingerprint '{name}'. Available: {sorted(FINGERPRINT_REGISTRY)}")
 
@@ -29,7 +49,17 @@ def create_fingerprinter(name: str, fp_size: int | None = None) -> object:
     elif fp_size is not None:
         kwargs["fp_size"] = fp_size
 
+    kwargs.update(extra_kwargs)
     return cls(**kwargs)
+
+
+def config_label(conf: dict[str, Any]) -> str:
+    name = conf["name"]
+    parts = [name]
+    for key, val in conf.items():
+        if key != "name":
+            parts.append(f"{key}{val}")
+    return "_".join(parts)
 
 
 def get_fp_size(fingerprinter: object) -> int:

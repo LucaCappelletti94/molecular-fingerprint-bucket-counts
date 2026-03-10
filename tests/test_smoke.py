@@ -65,10 +65,13 @@ def test_smoke_pipeline(smoke_env):
     output_dir = smoke_env["output_dir"]
     assert output_dir.exists()
 
+    from fp_bucket_counts.cli import FP_CONFIGS
+
+    expected_count = len(FP_CONFIGS)
     csv_files = list(output_dir.glob("bit_counts_*.csv"))
     png_files = list(output_dir.glob("histogram_*.png"))
-    assert len(csv_files) == 4, f"Expected 4 CSV files, got {csv_files}"
-    assert len(png_files) == 4, f"Expected 4 PNG files, got {png_files}"
+    assert len(csv_files) == expected_count, f"Expected {expected_count} CSV files, got {csv_files}"
+    assert len(png_files) == expected_count, f"Expected {expected_count} PNG files, got {png_files}"
 
     # Check CSV content
     for csv_file in csv_files:
@@ -77,15 +80,15 @@ def test_smoke_pipeline(smoke_env):
         assert header == "bit_position,count,fraction"
         assert len(lines) > 1
 
-    # Verify ECFP_2048 has 2048 rows (plus header)
-    ecfp_2048_csv = [f for f in csv_files if "ECFP_2048" in f.name][0]
+    # Verify ECFP_fp_size2048 has 2048 rows (plus header)
+    ecfp_2048_csv = [f for f in csv_files if f.name == "bit_counts_ECFP_fp_size2048.csv"][0]
     assert len(ecfp_2048_csv.read_text().strip().split("\n")) == 2049
 
-    # Verify ECFP_1024 has 1024 rows (plus header)
-    ecfp_1024_csv = [f for f in csv_files if "ECFP_1024" in f.name][0]
+    # Verify ECFP_fp_size1024 has 1024 rows (plus header)
+    ecfp_1024_csv = [f for f in csv_files if f.name == "bit_counts_ECFP_fp_size1024.csv"][0]
     assert len(ecfp_1024_csv.read_text().strip().split("\n")) == 1025
 
-    # Verify MACCS has 167 rows (plus header)
-    maccs_csv = [f for f in csv_files if "MACCS" in f.name][0]
+    # Verify MACCS has 166 rows (plus header)
+    maccs_csv = [f for f in csv_files if f.name == "bit_counts_MACCS.csv"][0]
     maccs_lines = maccs_csv.read_text().strip().split("\n")
-    assert len(maccs_lines) == 167  # header + 166 rows
+    assert len(maccs_lines) == 167

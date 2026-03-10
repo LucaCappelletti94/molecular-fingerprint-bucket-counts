@@ -71,7 +71,8 @@ def _init_fused_worker(fp_configs: list[dict]) -> None:
     for fp_conf in fp_configs:
         name = fp_conf["name"]
         fp_size = fp_conf.get("fp_size")
-        _fused_fingerprinters.append(create_fingerprinter(name, fp_size=fp_size))
+        extra = {k: v for k, v in fp_conf.items() if k not in ("name", "fp_size")}
+        _fused_fingerprinters.append(create_fingerprinter(name, fp_size=fp_size, **extra))
 
 
 def _normalize_and_count_batch(inchi_batch: Sequence[str]) -> tuple[list[np.ndarray], int]:

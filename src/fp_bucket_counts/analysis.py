@@ -28,8 +28,7 @@ def plot_histogram(
     bit_counts: np.ndarray,
     path: Path,
     total_molecules: int,
-    fp_name: str,
-    fp_size: int,
+    label: str,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 10))
@@ -37,13 +36,13 @@ def plot_histogram(
     ax1.bar(range(len(bit_counts)), bit_counts, width=1.0, edgecolor="none")
     ax1.set_xlabel("Bit position")
     ax1.set_ylabel("Count")
-    ax1.set_title(f"{fp_name} (size={fp_size}): count per bit position")
+    ax1.set_title(f"{label}: count per bit position")
     ax1.set_xlim(-0.5, len(bit_counts) - 0.5)
 
     ax2.hist(bit_counts, bins=50, edgecolor="black", linewidth=0.5)
     ax2.set_xlabel("Count")
     ax2.set_ylabel("Number of bit positions")
-    ax2.set_title(f"{fp_name} (size={fp_size}): distribution of bit counts")
+    ax2.set_title(f"{label}: distribution of bit counts")
 
     fig.suptitle(f"Total molecules: {total_molecules:,}", fontsize=10, y=0.98)
     fig.tight_layout()
@@ -54,8 +53,7 @@ def plot_histogram(
 def print_summary(
     bit_counts: np.ndarray,
     total_molecules: int,
-    fp_name: str,
-    fp_size: int,
+    label: str,
 ) -> None:
     counts = bit_counts.astype(np.float64)
     mean = np.mean(counts)
@@ -63,7 +61,7 @@ def print_summary(
     cv = std / mean if mean > 0 else float("inf")
 
     print(f"\n{'=' * 60}")
-    print(f"  {fp_name} (size={fp_size})")
+    print(f"  {label}")
     print(f"{'=' * 60}")
     print(f"  Total molecules:  {total_molecules:>12,}")
     print(f"  Min count:        {int(np.min(bit_counts)):>12,}")

@@ -17,7 +17,7 @@ from .analysis import (
     save_counts_csv,
 )
 from .download import ensure_data
-from .fingerprint import create_fingerprinter, get_fp_size
+from .fingerprint import config_label, create_fingerprinter, get_fp_size
 from .normalize import _init_fused_worker, _normalize_and_count_batch
 from .stream import stream_inchi
 
@@ -25,10 +25,48 @@ DATA_DIR = Path("data")
 OUTPUT_DIR = Path("output")
 
 FP_CONFIGS: list[dict[str, Any]] = [
+    # --- Hashed fingerprints at standard 2048 ---
     {"name": "ECFP", "fp_size": 2048},
-    {"name": "ECFP", "fp_size": 1024},
     {"name": "AtomPair", "fp_size": 2048},
+    {"name": "TopologicalTorsion", "fp_size": 2048},
+    {"name": "RDKit", "fp_size": 2048},
+    {"name": "MHFP", "fp_size": 2048},
+    {"name": "Avalon", "fp_size": 2048},
+    {"name": "MAP", "fp_size": 2048},
+    {"name": "SECFP", "fp_size": 2048},
+    {"name": "Lingo", "fp_size": 2048},
+    # --- Larger sizes ---
+    {"name": "ECFP", "fp_size": 4096},
+    {"name": "ECFP", "fp_size": 8192},
+    {"name": "ECFP", "fp_size": 16384},
+    {"name": "AtomPair", "fp_size": 4096},
+    {"name": "AtomPair", "fp_size": 8192},
+    {"name": "AtomPair", "fp_size": 16384},
+    {"name": "TopologicalTorsion", "fp_size": 4096},
+    {"name": "TopologicalTorsion", "fp_size": 8192},
+    {"name": "TopologicalTorsion", "fp_size": 16384},
+    {"name": "RDKit", "fp_size": 4096},
+    {"name": "RDKit", "fp_size": 8192},
+    {"name": "RDKit", "fp_size": 16384},
+    {"name": "MHFP", "fp_size": 4096},
+    {"name": "MHFP", "fp_size": 8192},
+    {"name": "MHFP", "fp_size": 16384},
+    {"name": "Avalon", "fp_size": 4096},
+    {"name": "Avalon", "fp_size": 8192},
+    {"name": "Avalon", "fp_size": 16384},
+    # --- Smaller default sizes ---
+    {"name": "ECFP", "fp_size": 1024},
+    {"name": "Avalon", "fp_size": 512},
+    {"name": "MAP", "fp_size": 1024},
+    {"name": "Lingo", "fp_size": 1024},
+    # --- Radius variants ---
+    {"name": "ECFP", "fp_size": 2048, "radius": 3},
+    {"name": "MAP", "fp_size": 2048, "radius": 3},
+    {"name": "MAP", "fp_size": 2048, "radius": 4},
+    # --- Fixed-size structural keys ---
     {"name": "MACCS"},
+    {"name": "PubChem"},
+    {"name": "KlekotaRoth"},
 ]
 BATCH_SIZE = 10_000
 
@@ -55,16 +93,18 @@ def run_pipeline(limit: int | None = None) -> None:
 
     gz_path = ensure_data(DATA_DIR)
 
-    fp_labels = []
+    fp_entries = []
     for fp_conf in FP_CONFIGS:
         name = fp_conf["name"]
         fp_size = fp_conf.get("fp_size")
-        fpr = create_fingerprinter(name, fp_size=fp_size)
+        extra = {k: v for k, v in fp_conf.items() if k not in ("name", "fp_size")}
+        fpr = create_fingerprinter(name, fp_size=fp_size, **extra)
         actual_size = get_fp_size(fpr)
-        fp_labels.append((name, actual_size))
-        log.info("Registered fingerprint: %s (size=%d)", name, actual_size)
+        label = config_label(fp_conf)
+        fp_entries.append((label, actual_size))
+        log.info("Registered fingerprint: %s (size=%d)", label, actual_size)
 
-    fp_sizes = [size for _, size in fp_labels]
+    fp_sizes = [size for _, size in fp_entries]
 
     # Phase 1: Load and deduplicate all InChIs
     inchi_stream = stream_inchi(gz_path, limit=limit)
@@ -94,15 +134,15 @@ def run_pipeline(limit: int | None = None) -> None:
     log.info("Processed %d molecules", total_molecules)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    for (name, fp_size), acc in tqdm(
-        zip(fp_labels, accumulators), desc="Reporting", unit="fingerprint"
+    for (label, _fp_size), acc in tqdm(
+        zip(fp_entries, accumulators), desc="Reporting", unit="fingerprint"
     ):
-        csv_path = OUTPUT_DIR / f"bit_counts_{name}_{fp_size}.csv"
-        png_path = OUTPUT_DIR / f"histogram_{name}_{fp_size}.png"
+        csv_path = OUTPUT_DIR / f"bit_counts_{label}.csv"
+        png_path = OUTPUT_DIR / f"histogram_{label}.png"
 
         save_counts_csv(acc, csv_path, total_molecules)
-        plot_histogram(acc, png_path, total_molecules, name, fp_size)
-        print_summary(acc, total_molecules, name, fp_size)
+        plot_histogram(acc, png_path, total_molecules, label)
+        print_summary(acc, total_molecules, label)
 
         log.info("Saved: %s", csv_path)
         log.info("Saved: %s", png_path)
