@@ -38,10 +38,12 @@ def test_merge_worker_files(tmp_path):
     assert list(tmp_path.glob(f"cooc_*_{config_idx}.npy")) == []
 
 
-def test_merge_no_files(tmp_path):
-    """Merge with no files returns zeros."""
-    merged = merge_worker_cooccurrence(tmp_path, 0, 4)
+def test_merge_no_files(tmp_path, caplog):
+    """Merge with no files returns zeros and logs a warning."""
+    with caplog.at_level("WARNING", logger="fp_bucket_counts.cooccurrence"):
+        merged = merge_worker_cooccurrence(tmp_path, 0, 4)
     np.testing.assert_array_equal(merged, np.zeros((4, 4), dtype=np.uint64))
+    assert "No worker files found for config 0" in caplog.text
 
 
 def test_npz_roundtrip(tmp_path):

@@ -32,6 +32,7 @@ from .cooccurrence import (
 from .download import ensure_data
 from .fingerprint import config_label, create_fingerprinter, get_fp_size
 from .normalize import (
+    _flush_cooc_to_disk,
     _init_fused_worker,
     _normalize_and_count_batch,
     _save_cooc_accumulators,
@@ -197,6 +198,13 @@ def run_pipeline(limit: int | None = None) -> None:
                 for i, (acc, partial) in enumerate(zip(accumulators, partial_counts)):
                     acc += partial
                     total_molecules[i] += fp_counts[i]
+
+            # Flush co-occurrence accumulators from all workers
+            saved_pids: set[int] = set()
+            while len(saved_pids) < n_jobs:
+                pid = pool.apply(_flush_cooc_to_disk)
+                saved_pids.add(pid)
+            log.info("Flushed co-occurrence accumulators from %d workers", len(saved_pids))
         finally:
             pool.close()
             pool.join()

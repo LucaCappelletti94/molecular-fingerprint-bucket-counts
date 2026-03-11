@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -65,11 +66,9 @@ _cooc_tmp_dir: str | None = None
 
 
 def _save_cooc_accumulators() -> None:
-    """atexit handler: save per-worker co-occurrence accumulators to disk."""
+    """Save per-worker co-occurrence accumulators to disk."""
     if _cooc_accumulators is None or _cooc_tmp_dir is None:
         return
-    import os
-
     if not os.path.isdir(_cooc_tmp_dir):
         return
 
@@ -97,8 +96,6 @@ def _init_fused_worker(
         _fused_fingerprinters.append(create_fingerprinter(name, fp_size=fp_size, **extra))
 
     if cooc_tmp_dir is not None:
-        import atexit
-
         _cooc_tmp_dir = cooc_tmp_dir
         enabled_flags = (
             list(cooc_enabled) if cooc_enabled is not None else [True] * len(_fused_fingerprinters)
@@ -109,10 +106,15 @@ def _init_fused_worker(
             np.zeros((get_fp_size(fpr), get_fp_size(fpr)), dtype=np.uint32) if enabled else None
             for enabled, fpr in zip(enabled_flags, _fused_fingerprinters)
         ]
-        atexit.register(_save_cooc_accumulators)
     else:
         _cooc_accumulators = None
         _cooc_tmp_dir = None
+
+
+def _flush_cooc_to_disk(_ignored: object = None) -> int:
+    """Explicitly save co-occurrence accumulators to disk. Returns worker PID."""
+    _save_cooc_accumulators()
+    return os.getpid()
 
 
 def _normalize_and_count_batch(inchi_batch: Sequence[str]) -> tuple[list[np.ndarray], list[int]]:

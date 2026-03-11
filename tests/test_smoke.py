@@ -125,6 +125,7 @@ def test_smoke_pipeline(smoke_env, capsys):
     cooc_matrix, total = load_cooccurrence_npz(ecfp_npz)
     assert cooc_matrix.shape == (2048, 2048)
     assert total > 0
+    assert cooc_matrix.sum() > 0, "Co-occurrence matrix is all zeros"
 
     notification_titles = [notification["title"] for notification in smoke_env["notifications"]]
     assert notification_titles == [
@@ -151,7 +152,14 @@ def test_pipeline_writes_svg_when_pool_unavailable(smoke_env, monkeypatch):
     assert (output_dir / "histogram_ECFP_fp_size1024.svg").exists()
     assert not list(output_dir.glob("histogram_*.png"))
 
-    # Co-occurrence outputs exist in serial fallback too
+    # Co-occurrence outputs exist and are nonzero in serial fallback too
     assert (output_dir / "cooc_ECFP_fp_size1024.npz").exists()
     assert (output_dir / "cooc_summary_ECFP_fp_size1024.csv").exists()
     assert (output_dir / "cooc_heatmap_ECFP_fp_size1024.svg").exists()
+
+    from fp_bucket_counts.cooccurrence import load_cooccurrence_npz
+
+    cooc_matrix, total = load_cooccurrence_npz(output_dir / "cooc_ECFP_fp_size1024.npz")
+    assert cooc_matrix.shape == (1024, 1024)
+    assert total > 0
+    assert cooc_matrix.sum() > 0, "Co-occurrence matrix is all zeros"

@@ -32,6 +32,8 @@ def merge_worker_cooccurrence(tmp_dir: Path, config_index: int, fp_size: int) ->
     pattern = f"cooc_*_{config_index}.npy"
     files = sorted(tmp_dir.glob(pattern))
     merged = np.zeros((fp_size, fp_size), dtype=np.uint64)
+    if not files:
+        log.warning("No worker files found for config %d — matrix will be all zeros", config_index)
     for f in files:
         arr = np.load(f)
         merged += arr.astype(np.uint64)
