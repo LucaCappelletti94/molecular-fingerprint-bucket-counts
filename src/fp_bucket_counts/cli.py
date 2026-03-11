@@ -86,12 +86,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def run_pipeline(limit: int | None = None) -> None:
+def run_pipeline(
+    limit: int | None = None,
+    output_dir: Path | None = None,
+    data_dir: Path | None = None,
+) -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     log = logging.getLogger(__name__)
+
+    out = output_dir if output_dir is not None else OUTPUT_DIR
+    data = data_dir if data_dir is not None else DATA_DIR
 
     topic = generate_topic()
     ntfy_url = f"https://ntfy.sh/{topic}"
@@ -99,7 +106,7 @@ def run_pipeline(limit: int | None = None) -> None:
     print(f"\nNotifications: {ntfy_url}\n")
     notify(topic, f"Pipeline started (limit={limit})", title="Pipeline Started", tags="rocket")
 
-    gz_path = ensure_data(DATA_DIR)
+    gz_path = ensure_data(data)
     notify(topic, f"Data ready: {gz_path}", title="Data Downloaded", tags="white_check_mark")
 
     fp_entries = []
@@ -217,12 +224,12 @@ def run_pipeline(limit: int | None = None) -> None:
         tags="bar_chart",
     )
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
     for (label, _fp_size), acc, mol_count in tqdm(
         zip(fp_entries, accumulators, total_molecules), desc="Reporting", unit="fingerprint"
     ):
-        csv_path = OUTPUT_DIR / f"bit_counts_{label}.csv"
-        svg_path = OUTPUT_DIR / f"histogram_{label}.svg"
+        csv_path = out / f"bit_counts_{label}.csv"
+        svg_path = out / f"histogram_{label}.svg"
 
         save_counts_csv(acc, csv_path, mol_count)
         plot_histogram(acc, svg_path, mol_count, label)
@@ -239,9 +246,9 @@ def run_pipeline(limit: int | None = None) -> None:
         desc="Co-occurrence",
         unit="fingerprint",
     ):
-        npz_path = OUTPUT_DIR / f"cooc_{label}.npz"
-        summary_path = OUTPUT_DIR / f"cooc_summary_{label}.csv"
-        heatmap_path = OUTPUT_DIR / f"cooc_heatmap_{label}.svg"
+        npz_path = out / f"cooc_{label}.npz"
+        summary_path = out / f"cooc_summary_{label}.csv"
+        heatmap_path = out / f"cooc_heatmap_{label}.svg"
 
         if cooc_enabled[i]:
             cooc_matrix = merge_worker_cooccurrence(cooc_tmp_path, i, fp_size)
@@ -260,7 +267,7 @@ def run_pipeline(limit: int | None = None) -> None:
 
     notify(
         topic,
-        f"All done! {len(FP_CONFIGS)} fingerprints reported to {OUTPUT_DIR}/",
+        f"All done! {len(FP_CONFIGS)} fingerprints reported to {out}/",
         title="Pipeline Complete",
         tags="tada",
     )

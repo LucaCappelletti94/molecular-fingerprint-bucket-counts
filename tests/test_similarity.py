@@ -208,6 +208,14 @@ class TestIdfTanimoto:
         w = np.ones(3, dtype=np.float64)
         assert idf_tanimoto(x, x, w) == 0.0
 
+    def test_known_weighted_value(self):
+        x = np.array([1, 1, 0], dtype=np.uint8)
+        y = np.array([1, 0, 1], dtype=np.uint8)
+        w = np.array([2.0, 3.0, 5.0])
+        # intersection bits: bit 0 only → num = w[0]*1*1 = 2
+        # denom = (w[0]+w[1]) + (w[0]+w[2]) - 2 = 5 + 7 - 2 = 10
+        np.testing.assert_almost_equal(idf_tanimoto(x, y, w), 2.0 / 10.0)
+
 
 # ------------------------------------------------------------------
 # Entropy Hamming
@@ -223,6 +231,14 @@ class TestEntropyHamming:
         y = np.array([0, 1], dtype=np.uint8)
         w = np.zeros(2, dtype=np.float64)
         assert entropy_hamming(x, y, w) == 0.0
+
+    def test_known_value(self):
+        x = np.array([1, 1, 0], dtype=np.uint8)
+        y = np.array([1, 0, 1], dtype=np.uint8)
+        w = np.array([2.0, 3.0, 5.0])
+        # delta = [0, 1, 1], weighted = [0, 3, 5] → sum = 8
+        # total_weight = 10 → 8/10 = 0.8
+        np.testing.assert_almost_equal(entropy_hamming(x, y, w), 0.8)
 
 
 # ------------------------------------------------------------------
@@ -240,6 +256,14 @@ class TestDiagonalMahalanobis:
         w = np.ones(3, dtype=np.float64)
         # Hamming distance = 2 differing bits
         np.testing.assert_almost_equal(diagonal_mahalanobis(x, y, w), 2.0)
+
+    def test_known_weighted_value(self):
+        x = np.array([1, 1, 0], dtype=np.uint8)
+        y = np.array([1, 0, 1], dtype=np.uint8)
+        w = np.array([2.0, 3.0, 5.0])
+        # delta = [0, 1, -1], delta^2 = [0, 1, 1]
+        # weighted = [0, 3, 5] → sum = 8
+        np.testing.assert_almost_equal(diagonal_mahalanobis(x, y, w), 8.0)
 
 
 # ------------------------------------------------------------------
@@ -286,6 +310,16 @@ class TestBatch:
         batch_result = mahalanobis_batch(query, targets, omega)
         loop_result = np.array([mahalanobis(query, t, omega) for t in targets])
         np.testing.assert_array_almost_equal(batch_result, loop_result)
+
+    def test_mahalanobis_batch_nontrivial_precision(self, small_corpus):
+        fps, cooc, _, n = small_corpus
+        omega = precision_matrix(cooc, n)
+        query = fps[0]
+        targets = fps[1:]
+        batch_result = mahalanobis_batch(query, targets, omega)
+        loop_result = np.array([mahalanobis(query, t, omega) for t in targets])
+        np.testing.assert_array_almost_equal(batch_result, loop_result)
+        assert np.all(batch_result >= 0)
 
 
 # ------------------------------------------------------------------
