@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 fp-bucket-counts = "fp_bucket_counts.cli:main"
+fp-sim-weights = "fp_bucket_counts.sim_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fp_bucket_counts"]
@@ -39,6 +40,8 @@ module = [
     "skfp.*",
     "rdkit.*",
     "matplotlib.*",
+    "scipy.*",
+    "sklearn.*",
 ]
 ignore_missing_imports = true
 
