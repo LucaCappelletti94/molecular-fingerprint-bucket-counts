@@ -1,0 +1,3 @@
+# total_molecules: 82738803
+# skipped: dense co-occurrence skipped for fp_size=4096 (>2048 bits)
+bit_i,bit_j,count,fraction,expected_fraction,pmi
