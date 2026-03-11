@@ -3,20 +3,16 @@
 [![CI](https://github.com/LucaCappelletti94/molecular-fingerprint-bucket-counts/actions/workflows/ci.yml/badge.svg)](https://github.com/LucaCappelletti94/molecular-fingerprint-bucket-counts/actions/workflows/ci.yml)
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 
-Are molecular fingerprint buckets uniform? This pipeline downloads all ~116M InChI entries from PubChem, normalizes molecules with RDKit, computes multiple fingerprints via scikit-fingerprints, and counts how many molecules activate each bit position. The output is per-fingerprint CSVs, histograms showing the distribution across buckets, and bit co-occurrence matrices.
+Are molecular fingerprint buckets uniform? This project downloads PubChem InChIs, normalizes molecules with RDKit, computes fingerprints via scikit-fingerprints, and writes per-fingerprint bucket counts, histograms, co-occurrence matrices, derived similarity weights, and MUV virtual-screening evaluation summaries.
 
-## Example output
+## Outputs
 
-Below is the histogram produced for **ECFP at 2048 bits** over the full PubChem dataset:
+The pipeline writes local artifacts under `output/`, including:
 
-![ECFP 2048 histogram](output/histogram_ECFP_2048.svg)
-
-The figure contains two subplots:
-
-- **Top - count per bit position.** Each bar corresponds to one of the 2048 bit positions in the fingerprint. The height of a bar is the number of molecules (out of all molecules processed) that have that bit set to 1. If the fingerprint hashes features into buckets uniformly, all bars should be roughly the same height. Bars that are much taller than average indicate "hot" bits where many unrelated features collide; bars near zero indicate wasted capacity.
-- **Bottom - distribution of bit counts.** This is a histogram of the per-bit counts from the top plot. It answers: across all 2048 bit positions, how are the hit-counts distributed? A tight, narrow peak means most bits are activated by a similar number of molecules (good uniformity). A wide or multi-modal distribution signals that some bits are hit far more often than others (hash collision imbalance).
-
-The supertitle shows the total number of molecules that were successfully fingerprinted.
+- `bit_counts_*.csv` and `histogram_*.svg` for bucket occupancy.
+- `cooc_*.npz`, `cooc_summary_*.csv`, and `cooc_heatmap_*.svg` for bit co-occurrence.
+- `sim_weights_*.npz` for IDF, entropy, and precision-derived similarity weights.
+- `eval_muv_*.csv` and `eval_muv_summary_*.csv` for MUV screening benchmarks.
 
 ## Setup
 
@@ -27,16 +23,20 @@ uv sync
 ## Usage
 
 ```bash
-# Full run (downloads ~6.8 GB from PubChem, processes all ~116M molecules)
-uv run fp-bucket-counts
+# End-to-end experiment: pipeline, weight derivation, then MUV evaluation
+uv run fp-experiment
 
-# Quick test with 1000 molecules
+# Quick local run: pipeline + weights only
+uv run fp-experiment --limit 1000 --skip-eval
+
+# Raw pipeline only
 uv run fp-bucket-counts --limit 1000
+
+# Derive similarity weights from an existing output directory
+uv run fp-sim-weights --output-dir output
 ```
 
-Each run prints a dedicated `ntfy.sh` topic URL and sends progress notifications for the main pipeline milestones.
-
-Results (CSVs and SVGs) are written to `output/`.
+The raw fingerprint pipeline prints a dedicated `ntfy.sh` topic URL and sends progress notifications for the main milestones. Generated artifacts are treated as local outputs and are ignored by Git.
 
 ## Tests
 
