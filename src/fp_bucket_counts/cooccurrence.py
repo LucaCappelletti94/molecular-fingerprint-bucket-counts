@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 log = logging.getLogger(__name__)
 
-MAX_DENSE_COOCCURRENCE_FP_SIZE = 2048
+MAX_DENSE_COOCCURRENCE_FP_SIZE = 4096
 MAX_HEATMAP_FP_SIZE = 4096
 
 
