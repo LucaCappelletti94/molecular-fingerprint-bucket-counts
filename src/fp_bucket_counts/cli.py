@@ -43,32 +43,33 @@ DATA_DIR = Path("data")
 OUTPUT_DIR = Path("output")
 
 FP_CONFIGS: list[dict[str, Any]] = [
-    # --- Hashed fingerprints at standard 2048 ---
-    {"name": "ECFP", "fp_size": 2048},
-    {"name": "AtomPair", "fp_size": 2048},
-    {"name": "TopologicalTorsion", "fp_size": 2048},
-    {"name": "RDKit", "fp_size": 2048},
-    {"name": "MHFP", "fp_size": 2048},
-    {"name": "Avalon", "fp_size": 2048},
-    {"name": "MAP", "fp_size": 2048},
-    {"name": "SECFP", "fp_size": 2048},
-    {"name": "Lingo", "fp_size": 2048},
-    # --- Larger sizes ---
-    {"name": "ECFP", "fp_size": 4096},
-    {"name": "AtomPair", "fp_size": 4096},
-    {"name": "TopologicalTorsion", "fp_size": 4096},
-    {"name": "RDKit", "fp_size": 4096},
-    {"name": "MHFP", "fp_size": 4096},
-    {"name": "Avalon", "fp_size": 4096},
-    # --- Smaller default sizes ---
+    # --- ECFP sizes ---
     {"name": "ECFP", "fp_size": 1024},
-    {"name": "Avalon", "fp_size": 512},
-    {"name": "Lingo", "fp_size": 1024},
-    # --- Radius variants ---
-    {"name": "ECFP", "fp_size": 2048, "radius": 3},
-    # --- Fixed-size structural keys ---
-    {"name": "MACCS"},
-    {"name": "PubChem"},
+    {"name": "ECFP", "fp_size": 2048},
+    {"name": "ECFP", "fp_size": 4096},
+    # # --- Other hashed fingerprints at standard 2048 ---
+    # {"name": "AtomPair", "fp_size": 2048},
+    # {"name": "TopologicalTorsion", "fp_size": 2048},
+    # {"name": "RDKit", "fp_size": 2048},
+    # {"name": "MHFP", "fp_size": 2048},
+    # {"name": "Avalon", "fp_size": 2048},
+    # {"name": "MAP", "fp_size": 2048},
+    # {"name": "SECFP", "fp_size": 2048},
+    # {"name": "Lingo", "fp_size": 2048},
+    # # --- Other larger sizes ---
+    # {"name": "AtomPair", "fp_size": 4096},
+    # {"name": "TopologicalTorsion", "fp_size": 4096},
+    # {"name": "RDKit", "fp_size": 4096},
+    # {"name": "MHFP", "fp_size": 4096},
+    # {"name": "Avalon", "fp_size": 4096},
+    # # --- Other smaller sizes ---
+    # {"name": "Avalon", "fp_size": 512},
+    # {"name": "Lingo", "fp_size": 1024},
+    # # --- Radius variants ---
+    # {"name": "ECFP", "fp_size": 2048, "radius": 3},
+    # # --- Fixed-size structural keys ---
+    # {"name": "MACCS"},
+    # {"name": "PubChem"},
 ]
 BATCH_SIZE = 10_000
 

@@ -104,11 +104,6 @@ def test_smoke_pipeline(smoke_env, capsys):
     ecfp_1024_csv = [f for f in csv_files if f.name == "bit_counts_ECFP_fp_size1024.csv"][0]
     assert len(ecfp_1024_csv.read_text().strip().split("\n")) == 1026
 
-    # Verify MACCS has 166 data rows (+ comment + header)
-    maccs_csv = [f for f in csv_files if f.name == "bit_counts_MACCS.csv"][0]
-    maccs_lines = maccs_csv.read_text().strip().split("\n")
-    assert len(maccs_lines) == 168
-
     # Verify co-occurrence outputs exist for all configs
     npz_files = list(output_dir.glob("cooc_*.npz"))
     cooc_csv_files = list(output_dir.glob("cooc_summary_*.csv"))
