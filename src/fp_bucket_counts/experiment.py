@@ -6,9 +6,25 @@ from pathlib import Path
 from typing import Any
 
 from .cli import FP_CONFIGS, run_pipeline
+from .eval_dude import run_dude_evaluation
 from .eval_muv import run_muv_evaluation
+from .plot_eval import plot_all_eval
 from .fingerprint import config_label
 from .sim_cli import run_sim_weights
+
+KNOWN_BENCHMARKS = {"muv", "dude"}
+
+
+def _parse_benchmarks(benchmarks: str) -> set[str]:
+    """Parse ``--benchmarks`` value into a set of benchmark IDs."""
+    if benchmarks.strip().lower() == "all":
+        return set(KNOWN_BENCHMARKS)
+    result = {b.strip().lower() for b in benchmarks.split(",")}
+    unknown = result - KNOWN_BENCHMARKS
+    if unknown:
+        raise ValueError(f"Unknown benchmarks: {unknown}. Known: {sorted(KNOWN_BENCHMARKS)}")
+    return result
+
 
 OUTPUT_DIR = Path("output")
 
@@ -42,6 +58,7 @@ def run_experiment(
     seed: int = 42,
     force: bool = False,
     skip_eval: bool = False,
+    benchmarks: str = "muv",
 ) -> None:
     log = logging.getLogger(__name__)
     data_dir = output_dir / "data"
@@ -70,12 +87,19 @@ def run_experiment(
     log.info("Step 2: deriving similarity weights")
     run_sim_weights(output_dir, shrinkage=shrinkage)
 
-    # --- Step 3: MUV evaluation (moderate) ---
+    # --- Step 3: benchmark evaluations ---
     if skip_eval:
         log.info("Step 3 skipped (--skip-eval)")
     else:
-        log.info("Step 3: MUV virtual screening evaluation")
-        run_muv_evaluation(output_dir, output_dir, num_queries, seed)
+        active = _parse_benchmarks(benchmarks)
+        if "muv" in active:
+            log.info("Step 3a: MUV evaluation")
+            run_muv_evaluation(output_dir, output_dir, num_queries, seed)
+        if "dude" in active:
+            log.info("Step 3b: DUD-E evaluation")
+            run_dude_evaluation(output_dir, output_dir, num_queries, seed)
+        log.info("Step 4: generating evaluation plots")
+        plot_all_eval(output_dir)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -118,7 +142,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--skip-eval",
         action="store_true",
-        help="Skip MUV evaluation (steps 1+2 only)",
+        help="Skip evaluation (steps 1+2 only)",
+    )
+    parser.add_argument(
+        "--benchmarks",
+        type=str,
+        default="muv",
+        help='Benchmarks: "muv", "dude", "muv,dude", or "all" (default: muv)',
     )
     return parser.parse_args(argv)
 
@@ -137,6 +167,7 @@ def main() -> None:
         seed=args.seed,
         force=args.force,
         skip_eval=args.skip_eval,
+        benchmarks=args.benchmarks,
     )
 
 

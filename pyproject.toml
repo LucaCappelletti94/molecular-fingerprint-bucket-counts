@@ -19,6 +19,9 @@ dependencies = [
 fp-bucket-counts = "fp_bucket_counts.cli:main"
 fp-sim-weights = "fp_bucket_counts.sim_cli:main"
 fp-experiment = "fp_bucket_counts.experiment:main"
+fp-eval-muv = "fp_bucket_counts.eval_muv:main"
+fp-eval-dude = "fp_bucket_counts.eval_dude:main"
+fp-plot-eval = "fp_bucket_counts.plot_eval:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fp_bucket_counts"]
