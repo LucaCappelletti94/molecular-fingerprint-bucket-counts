@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from fp_bucket_counts.experiment import _check_cache, _parse_benchmarks, run_experiment
+from fp_bucket_counts.experiment import _check_cache, run_experiment
 
 FP_CONFIGS_FIXTURE = [
     {"name": "ECFP", "fp_size": 1024},
@@ -56,22 +56,6 @@ class TestCheckCache:
         assert missing == ["ECFP_fp_size1024"]
 
 
-class TestParseBenchmarks:
-    def test_default_muv_only(self) -> None:
-        assert _parse_benchmarks("muv") == {"muv"}
-
-    def test_all_expands(self) -> None:
-        assert _parse_benchmarks("all") == {"muv", "dude"}
-
-    def test_invalid_value_raises(self) -> None:
-        try:
-            _parse_benchmarks("muv,unknown")
-        except ValueError as exc:
-            assert "Unknown benchmarks" in str(exc)
-        else:
-            raise AssertionError("Expected ValueError for invalid benchmark")
-
-
 @patch("fp_bucket_counts.experiment.FP_CONFIGS", FP_CONFIGS_FIXTURE)
 class TestRunExperiment:
     def test_skips_step1_when_cached(self, tmp_path: Path) -> None:
@@ -81,13 +65,15 @@ class TestRunExperiment:
         with (
             patch("fp_bucket_counts.experiment.run_pipeline") as mock_pipeline,
             patch("fp_bucket_counts.experiment.run_sim_weights") as mock_sim,
-            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_eval,
+            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_muv,
+            patch("fp_bucket_counts.experiment.run_dude_evaluation") as mock_dude,
         ):
             run_experiment(output_dir=tmp_path, skip_eval=True)
 
         mock_pipeline.assert_not_called()
         mock_sim.assert_called_once_with(tmp_path, shrinkage=0.1)
-        mock_eval.assert_not_called()
+        mock_muv.assert_not_called()
+        mock_dude.assert_not_called()
 
     def test_force_reruns_step1(self, tmp_path: Path) -> None:
         labels = ["ECFP_fp_size1024", "ECFP_fp_size2048"]
@@ -96,7 +82,9 @@ class TestRunExperiment:
         with (
             patch("fp_bucket_counts.experiment.run_pipeline") as mock_pipeline,
             patch("fp_bucket_counts.experiment.run_sim_weights") as mock_sim,
-            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_eval,
+            patch("fp_bucket_counts.experiment.run_muv_evaluation"),
+            patch("fp_bucket_counts.experiment.run_dude_evaluation"),
+            patch("fp_bucket_counts.experiment.plot_all_eval"),
         ):
             run_experiment(output_dir=tmp_path, force=True, skip_eval=True)
 
@@ -104,7 +92,6 @@ class TestRunExperiment:
             limit=None, output_dir=tmp_path, data_dir=tmp_path / "data"
         )
         mock_sim.assert_called_once()
-        mock_eval.assert_not_called()
 
     def test_runs_pipeline_on_cache_miss(self, tmp_path: Path) -> None:
         # Only one config cached
@@ -113,7 +100,9 @@ class TestRunExperiment:
         with (
             patch("fp_bucket_counts.experiment.run_pipeline") as mock_pipeline,
             patch("fp_bucket_counts.experiment.run_sim_weights") as mock_sim,
-            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_eval,
+            patch("fp_bucket_counts.experiment.run_muv_evaluation"),
+            patch("fp_bucket_counts.experiment.run_dude_evaluation"),
+            patch("fp_bucket_counts.experiment.plot_all_eval"),
         ):
             run_experiment(output_dir=tmp_path, limit=100, skip_eval=True)
 
@@ -121,7 +110,6 @@ class TestRunExperiment:
             limit=100, output_dir=tmp_path, data_dir=tmp_path / "data"
         )
         mock_sim.assert_called_once()
-        mock_eval.assert_not_called()
 
     def test_skip_eval(self, tmp_path: Path) -> None:
         labels = ["ECFP_fp_size1024", "ECFP_fp_size2048"]
@@ -130,72 +118,26 @@ class TestRunExperiment:
         with (
             patch("fp_bucket_counts.experiment.run_pipeline"),
             patch("fp_bucket_counts.experiment.run_sim_weights"),
-            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_eval,
+            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_muv,
+            patch("fp_bucket_counts.experiment.run_dude_evaluation") as mock_dude,
         ):
             run_experiment(output_dir=tmp_path, skip_eval=True)
 
-        mock_eval.assert_not_called()
+        mock_muv.assert_not_called()
+        mock_dude.assert_not_called()
 
-    def test_runs_eval_by_default(self, tmp_path: Path) -> None:
+    def test_runs_both_benchmarks_by_default(self, tmp_path: Path) -> None:
         labels = ["ECFP_fp_size1024", "ECFP_fp_size2048"]
         _populate_cache(tmp_path, labels)
 
         with (
             patch("fp_bucket_counts.experiment.run_pipeline"),
             patch("fp_bucket_counts.experiment.run_sim_weights"),
-            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_eval,
+            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_muv,
             patch("fp_bucket_counts.experiment.run_dude_evaluation") as mock_dude,
             patch("fp_bucket_counts.experiment.plot_all_eval"),
         ):
             run_experiment(output_dir=tmp_path, num_queries=3, seed=99)
 
-        mock_eval.assert_called_once_with(tmp_path, tmp_path, 3, 99)
-        mock_dude.assert_not_called()
-
-    def test_benchmarks_default_muv(self, tmp_path: Path) -> None:
-        labels = ["ECFP_fp_size1024", "ECFP_fp_size2048"]
-        _populate_cache(tmp_path, labels)
-
-        with (
-            patch("fp_bucket_counts.experiment.run_pipeline"),
-            patch("fp_bucket_counts.experiment.run_sim_weights"),
-            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_muv,
-            patch("fp_bucket_counts.experiment.run_dude_evaluation") as mock_dude,
-            patch("fp_bucket_counts.experiment.plot_all_eval"),
-        ):
-            run_experiment(output_dir=tmp_path, benchmarks="muv")
-
-        mock_muv.assert_called_once()
-        mock_dude.assert_not_called()
-
-    def test_benchmarks_dude(self, tmp_path: Path) -> None:
-        labels = ["ECFP_fp_size1024", "ECFP_fp_size2048"]
-        _populate_cache(tmp_path, labels)
-
-        with (
-            patch("fp_bucket_counts.experiment.run_pipeline"),
-            patch("fp_bucket_counts.experiment.run_sim_weights"),
-            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_muv,
-            patch("fp_bucket_counts.experiment.run_dude_evaluation") as mock_dude,
-            patch("fp_bucket_counts.experiment.plot_all_eval"),
-        ):
-            run_experiment(output_dir=tmp_path, benchmarks="dude")
-
-        mock_muv.assert_not_called()
-        mock_dude.assert_called_once_with(tmp_path, tmp_path, 5, 42)
-
-    def test_benchmarks_all(self, tmp_path: Path) -> None:
-        labels = ["ECFP_fp_size1024", "ECFP_fp_size2048"]
-        _populate_cache(tmp_path, labels)
-
-        with (
-            patch("fp_bucket_counts.experiment.run_pipeline"),
-            patch("fp_bucket_counts.experiment.run_sim_weights"),
-            patch("fp_bucket_counts.experiment.run_muv_evaluation") as mock_muv,
-            patch("fp_bucket_counts.experiment.run_dude_evaluation") as mock_dude,
-            patch("fp_bucket_counts.experiment.plot_all_eval"),
-        ):
-            run_experiment(output_dir=tmp_path, benchmarks="all")
-
-        mock_muv.assert_called_once()
-        mock_dude.assert_called_once()
+        mock_muv.assert_called_once_with(tmp_path, tmp_path, 3, 99)
+        mock_dude.assert_called_once_with(tmp_path, tmp_path, 3, 99)

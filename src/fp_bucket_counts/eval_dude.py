@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import tarfile
 from pathlib import Path
 
 import numpy as np
@@ -18,7 +17,7 @@ from .similarity import load_similarity_weights_npz
 
 log = logging.getLogger(__name__)
 
-DUDE_URL = "https://dude.docking.org/db/subsets/all/all.tar.gz"
+DUDE_BASE_URL = "https://dude.docking.org/targets"
 DUDE_TARGETS = [
     "aa2ar",
     "abl1",
@@ -127,32 +126,45 @@ DUDE_TARGETS = [
 # ---------------------------------------------------------------------------
 
 
-def download_dude(data_dir: Path) -> Path:
-    """Download all.tar.gz if not already cached. Return path."""
-    data_dir.mkdir(parents=True, exist_ok=True)
-    dest = data_dir / "all.tar.gz"
-    if dest.exists():
-        log.info("DUD-E data already cached: %s", dest)
-        return dest
+def _download_with_retries(url: str, dest: Path, max_retries: int = 3) -> None:
+    """Download a file with retries on transient HTTP errors."""
+    import time
+    import urllib.error
 
     from .download import download_file
 
-    download_file(DUDE_URL, dest)
-    return dest
+    for attempt in range(1, max_retries + 1):
+        try:
+            download_file(url, dest)
+            return
+        except urllib.error.HTTPError as exc:
+            if exc.code >= 500 and attempt < max_retries:
+                wait = 2**attempt
+                log.warning(
+                    "HTTP %d for %s (attempt %d/%d), retrying in %ds",
+                    exc.code, url, attempt, max_retries, wait,
+                )
+                time.sleep(wait)
+            else:
+                raise
 
 
-def extract_dude(tar_path: Path, data_dir: Path) -> Path:
-    """Extract DUD-E tarball to *data_dir*/all/. Returns extraction root."""
-    extract_dir = data_dir / "all"
-    sentinel = extract_dir / "aa2ar" / "actives_final.ism"
-    if sentinel.exists():
-        log.info("DUD-E already extracted: %s", extract_dir)
-        return extract_dir
+def download_dude_target(target: str, data_dir: Path) -> Path:
+    """Download actives_final.ism and decoys_final.ism for one target. Return target dir."""
+    target_dir = data_dir / target
+    actives_path = target_dir / "actives_final.ism"
+    decoys_path = target_dir / "decoys_final.ism"
 
-    log.info("Extracting %s -> %s", tar_path, extract_dir)
-    with tarfile.open(tar_path, "r:gz") as tf:
-        tf.extractall(data_dir, filter="data")
-    return extract_dir
+    if actives_path.exists() and decoys_path.exists():
+        return target_dir
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+    base = f"{DUDE_BASE_URL}/{target}"
+    if not actives_path.exists():
+        _download_with_retries(f"{base}/actives_final.ism", actives_path)
+    if not decoys_path.exists():
+        _download_with_retries(f"{base}/decoys_final.ism", decoys_path)
+    return target_dir
 
 
 def load_ism(path: Path) -> list[str]:
@@ -188,8 +200,6 @@ def run_dude_evaluation(weights_dir: Path, output_dir: Path, num_queries: int, s
 
     output_dir.mkdir(parents=True, exist_ok=True)
     data_dir = output_dir / "data" / "dude"
-    tar_path = download_dude(data_dir)
-    extract_dir = extract_dude(tar_path, data_dir)
 
     for wf in weight_files:
         label = wf.stem.removeprefix("sim_weights_")
@@ -203,10 +213,7 @@ def run_dude_evaluation(weights_dir: Path, output_dir: Path, num_queries: int, s
         all_roc: dict[str, list[dict]] = {}
 
         for target in DUDE_TARGETS:
-            target_dir = extract_dir / target
-            if not target_dir.is_dir():
-                log.warning("Skipping %s: directory not found", target)
-                continue
+            target_dir = download_dude_target(target, data_dir)
 
             active_smiles, decoy_smiles = load_dude_target(target_dir)
             if not active_smiles or not decoy_smiles:

@@ -11,7 +11,9 @@ from sklearn.metrics import roc_auc_score, roc_curve  # type: ignore[import-unty
 
 from .fingerprint import compute_fingerprints, create_fingerprinter
 from .similarity import (
+    entropy_weights,
     idf_tanimoto_batch,
+    idf_weights,
     mahalanobis_batch,
 )
 
@@ -159,6 +161,21 @@ def evaluate_target(
     diag_prec_w = weights["diagonal_precision"]
     precision_mat = weights.get("precision")
 
+    # Library-local weights (IDF/entropy from screening library, not PubChem)
+    local_bit_counts = library_fps.sum(axis=0).astype(np.uint64)
+    local_total = len(library_fps)
+    local_idf_w = idf_weights(local_bit_counts, local_total)
+    local_entropy_w = entropy_weights(local_bit_counts, local_total)
+
+    # Blended precision matrices: α * P_full + (1-α) * diag(P_full)
+    blended_precisions: list[tuple[str, NDArray[np.float64]]] = []
+    if precision_mat is not None:
+        diag_of_precision = np.diag(np.diag(precision_mat))
+        for alpha in (0.01, 0.1, 0.5):
+            label = f"blended_mahal_{alpha:.2f}".replace(".", "")
+            blended = alpha * precision_mat + (1 - alpha) * diag_of_precision
+            blended_precisions.append((label, blended))
+
     rows: list[dict] = []
     roc_curves: list[dict] = []
 
@@ -199,6 +216,19 @@ def evaluate_target(
         if precision_mat is not None:
             fm_dist = mahalanobis_batch(query_fp, library_fps, precision_mat)
             _record(qi, "full_mahalanobis", -fm_dist)
+
+        # Library-local IDF Tanimoto
+        local_idf_scores = idf_tanimoto_batch(query_fp, library_fps, local_idf_w)
+        _record(qi, "local_idf_tanimoto", local_idf_scores)
+
+        # Library-local entropy Hamming (distance -- negate)
+        local_eh_dist = _entropy_hamming_batch(query_fp, library_fps, local_entropy_w)
+        _record(qi, "local_entropy_hamming", -local_eh_dist)
+
+        # Blended Mahalanobis variants (distance -- negate)
+        for blend_label, blend_prec in blended_precisions:
+            bm_dist = mahalanobis_batch(query_fp, library_fps, blend_prec)
+            _record(qi, blend_label, -bm_dist)
 
     return pd.DataFrame(rows), roc_curves
 
